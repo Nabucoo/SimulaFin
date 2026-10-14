@@ -1,0 +1,15 @@
+# Arquivos compilados
+bin/
+*/bin/
+*.class
+
+# Dados volumosos de benchmarks
+data/*.csv
+
+# Configurações de IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
