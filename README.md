@@ -93,6 +93,17 @@ Sem um argumento, o programa tenta abrir `data/transactions_10M.csv`; se não en
 
 O processador lê o cabeçalho e processa os registros em lotes. Use um CSV produzido pelo gerador ou com o mesmo formato de colunas. Em sistemas Windows, substitua `:` no classpath pelo separador `;`.
 
+### Detecção de transações suspeitas
+
+Durante o processamento, o programa sinaliza transações que atendam a pelo menos uma destas regras:
+
+- Valor igual ou superior a R$ 15.000.
+- Categoria Eletrônicos com valor acima de R$ 8.000.
+- Categoria Saúde ou Educação com valor acima de R$ 2.000.
+- Valor acima de R$ 1.000 entre 00:00 e 05:59.
+
+O relatório exibe o total de transações suspeitas únicas, a quantidade de alertas por regra e uma amostra de até 10 transações. Uma transação pode corresponder a mais de uma regra.
+
 ## Testes do gerador
 
 Compile e execute a suíte incluída:

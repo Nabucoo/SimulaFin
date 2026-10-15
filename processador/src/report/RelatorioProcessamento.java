@@ -88,6 +88,24 @@ public class RelatorioProcessamento {
                     }
                 }
             }
+
+            System.out.println("--------------------------------------------------");
+            System.out.println("DETECÇÃO DE TRANSAÇÕES SUSPEITAS");
+            System.out.println("--------------------------------------------------");
+            System.out.printf("Transações suspeitas únicas: %,d%n",
+                    analise.getQuantidadeTransacoesSuspeitas());
+            if (analise.getAlertasPorRegra().isEmpty()) {
+                System.out.println("Nenhuma transação suspeita encontrada.");
+            } else {
+                System.out.println("Alertas por regra (uma transação pode corresponder a várias regras):");
+                for (Map.Entry<String, Long> entrada : new TreeMap<>(analise.getAlertasPorRegra()).entrySet()) {
+                    System.out.printf("  %s: %,d%n", entrada.getKey(), entrada.getValue());
+                }
+                System.out.println("Amostra (até 10 transações):");
+                for (String amostra : analise.getAmostrasTransacoesSuspeitas()) {
+                    System.out.println("  " + amostra);
+                }
+            }
         }
         System.out.println("==================================================");
     }
