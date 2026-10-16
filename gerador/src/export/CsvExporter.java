@@ -1,12 +1,12 @@
-package simulafin.export;
+package export;
 
-import simulafin.data.CustomerNameRepository;
-import simulafin.data.LocationRepository;
-import simulafin.generator.DateGenerator;
-import simulafin.generator.ValueGenerator;
-import simulafin.model.Category;
-import simulafin.model.CityState;
-import simulafin.model.TransactionType;
+import data.CustomerNameRepository;
+import data.LocationRepository;
+import generator.DateGenerator;
+import generator.ValueGenerator;
+import model.Category;
+import model.CityState;
+import model.TransactionType;
 
 import java.io.BufferedWriter;
 import java.io.FileOutputStream;
@@ -62,9 +62,6 @@ public final class CsvExporter {
             throw new IllegalArgumentException("totalCount deve ser maior que zero: " + totalCount);
         }
 
-        CityState[] cities = LocationRepository.getAllCities();
-        int cityLen = cities.length;
-
         Category[] categories = Category.cachedValues();
         int catLen = categories.length;
 
@@ -103,7 +100,7 @@ public final class CsvExporter {
 
                 // Categoria, Localidade e Tipo
                 String categoria = categories[random.nextInt(catLen)].getDescricao();
-                CityState loc = cities[random.nextInt(cityLen)];
+                CityState loc = LocationRepository.getRandomCity(random);
                 String tipo = types[random.nextInt(typeLen)].getDescricao();
 
                 // Gravação direta sem criar objeto Transaction na Heap

@@ -10,6 +10,9 @@ import model.Transaction;
 public class Analises {
 
     private static final int LIMITE_AMOSTRAS_SUSPEITAS = 10;
+    public static final List<String> MESES_DO_ANO = List.of(
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro");
 
     private double somaTransacoes;
     private long quantidadeTransacoes;
@@ -18,10 +21,15 @@ public class Analises {
     private Transaction menorTransacao;
 
     private final Map<String, EstatisticasCategoria> estatisticasCategoria = new HashMap<>();
+    private final Map<String, Long> transacoesPorCidade = new HashMap<>();
+    private final Map<String, Long> transacoesPorMes = new HashMap<>();
     private final Map<String, Long> alertasPorRegra = new HashMap<>();
     private final List<String> amostrasTransacoesSuspeitas = new ArrayList<>();
 
     public Analises() {
+        for (String mes : MESES_DO_ANO) {
+            transacoesPorMes.put(mes, 0L);
+        }
     }
 
     public void startAnalise(Transaction t) {
@@ -31,6 +39,18 @@ public class Analises {
 
         somaTransacoes += t.getValor();
         quantidadeTransacoes++;
+
+        String cidade = t.getCidade() == null ? "" : t.getCidade().trim();
+        String estado = t.getEstado() == null ? "" : t.getEstado().trim();
+        if (!cidade.isEmpty()) {
+            String localidade = estado.isEmpty() ? cidade : cidade + " - " + estado;
+            transacoesPorCidade.merge(localidade, 1L, Long::sum);
+        }
+
+        String mes = obterMes(t.getData());
+        if (mes != null) {
+            transacoesPorMes.merge(mes, 1L, Long::sum);
+        }
 
         if (maiorTransacao == null || t.getValor() > maiorTransacao.getValor()) {
             maiorTransacao = t;
@@ -84,6 +104,13 @@ public class Analises {
                     .combinar(entrada.getValue());
         }
 
+        for (Map.Entry<String, Long> entrada : outro.transacoesPorCidade.entrySet()) {
+            this.transacoesPorCidade.merge(entrada.getKey(), entrada.getValue(), Long::sum);
+        }
+        for (Map.Entry<String, Long> entrada : outro.transacoesPorMes.entrySet()) {
+            this.transacoesPorMes.merge(entrada.getKey(), entrada.getValue(), Long::sum);
+        }
+
         for (Map.Entry<String, Long> entrada : outro.alertasPorRegra.entrySet()) {
             this.alertasPorRegra.merge(entrada.getKey(), entrada.getValue(), Long::sum);
         }
@@ -132,5 +159,28 @@ public class Analises {
 
     public Map<String, EstatisticasCategoria> getEstatisticasPorCategoria() {
         return Collections.unmodifiableMap(estatisticasCategoria);
+    }
+
+    public Map<String, Long> getTransacoesPorCidade() {
+        return Collections.unmodifiableMap(transacoesPorCidade);
+    }
+
+    public Map<String, Long> getTransacoesPorMes() {
+        return Collections.unmodifiableMap(transacoesPorMes);
+    }
+
+    private static String obterMes(String data) {
+        if (data == null || data.length() < 5) {
+            return null;
+        }
+        char dezena = data.charAt(3);
+        char unidade = data.charAt(4);
+        if (dezena < '0' || dezena > '9' || unidade < '0' || unidade > '9') {
+            return null;
+        }
+        int numeroMes = (dezena - '0') * 10 + (unidade - '0');
+        return numeroMes >= 1 && numeroMes <= MESES_DO_ANO.size()
+                ? MESES_DO_ANO.get(numeroMes - 1)
+                : null;
     }
 }

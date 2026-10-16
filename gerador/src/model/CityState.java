@@ -1,4 +1,4 @@
-package simulafin.model;
+package model;
 
 /**
  * Representa uma localidade brasileira composta pelo nome da cidade e sua Unidade Federativa (UF).

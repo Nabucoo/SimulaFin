@@ -9,7 +9,7 @@ public class Main {
         System.out.println(System.getProperty("user.dir"));
 
         // 1. Arquivo de entrada
-        String arquivo = "data/transacoes_50M.csv";
+        String arquivo = "data/transacoes_exponencial_decrescente_50m.csv";
         if (args.length > 0) {
             arquivo = args[0];
         } else {

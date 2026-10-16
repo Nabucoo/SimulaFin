@@ -17,6 +17,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
 import report.RelatorioProcessamento;
@@ -44,6 +45,15 @@ public class LeitorCsv {
     }
 
     public void ler() throws IOException {
+        executar(true);
+    }
+
+    /** Executa o processamento sem gerar saídas de relatório e retorna o tempo medido. */
+    public double lerParaBenchmark() throws IOException {
+        return executar(false);
+    }
+
+    private double executar(boolean exibirRelatorio) throws IOException {
         File file = localizarArquivo(arquivo);
         if (file == null) {
             throw new IOException("Arquivo não encontrado: " + arquivo
@@ -51,13 +61,14 @@ public class LeitorCsv {
         }
         arquivo = file.getAbsolutePath();
 
-        RelatorioProcessamento.exibirCabecalho(arquivo, natureza, threads, afinidade, TAMANHO_LOTE);
+        if (exibirRelatorio) {
+            RelatorioProcessamento.exibirCabecalho(arquivo, natureza, threads, afinidade, TAMANHO_LOTE);
+        }
 
         if (natureza.equalsIgnoreCase("sequencial") || threads <= 1) {
-            lerSequencial();
-        } else {
-            lerParalelo();
+            return lerSequencial(exibirRelatorio);
         }
+        return lerParalelo(exibirRelatorio);
     }
 
     private File localizarArquivo(String caminho) {
@@ -87,14 +98,14 @@ public class LeitorCsv {
         return null;
     }
 
-    private void lerSequencial() throws IOException {
-        long inicio = System.currentTimeMillis();
+    private double lerSequencial(boolean exibirRelatorio) throws IOException {
+        long inicio = System.nanoTime();
         long totalLinhas = 0;
         int totalLotes = 0;
         Analises analiseGlobal = new Analises();
 
         try (BufferedReader reader = new BufferedReader(new FileReader(arquivo), 1024 * 1024)) {
-            if (reader.readLine() == null) return; // descarta cabeçalho
+            if (reader.readLine() == null) return 0; // descarta cabeçalho
 
             List<String> lote = new ArrayList<>(TAMANHO_LOTE);
             String linha;
@@ -104,7 +115,9 @@ public class LeitorCsv {
                     totalLotes++;
                     ProcessadorLote.processar(lote, analiseGlobal);
                     totalLinhas += lote.size();
-                    RelatorioProcessamento.exibirProgresso(totalLotes, lote.size(), "main", "");
+                    if (exibirRelatorio) {
+                        RelatorioProcessamento.exibirProgresso(totalLotes, lote.size(), "main", "");
+                    }
                     lote = new ArrayList<>(TAMANHO_LOTE);
                 }
             }
@@ -113,17 +126,25 @@ public class LeitorCsv {
                 totalLotes++;
                 ProcessadorLote.processar(lote, analiseGlobal);
                 totalLinhas += lote.size();
-                RelatorioProcessamento.exibirProgresso(totalLotes, lote.size(), "main", "");
+                if (exibirRelatorio) {
+                    RelatorioProcessamento.exibirProgresso(totalLotes, lote.size(), "main", "");
+                }
             }
         }
 
-        RelatorioProcessamento.exibirResumo(totalLinhas, totalLotes, System.currentTimeMillis() - inicio, analiseGlobal);
+        double duracaoMs = Math.max(0.001, (System.nanoTime() - inicio) / 1_000_000.0);
+        if (exibirRelatorio) {
+            RelatorioProcessamento.exibirResumo(
+                    totalLinhas, totalLotes, Math.max(1, Math.round(duracaoMs)), analiseGlobal);
+        }
+        return duracaoMs;
     }
 
-    private void lerParalelo() throws IOException {
-        long inicio = System.currentTimeMillis();
+    private double lerParalelo(boolean exibirRelatorio) throws IOException {
+        long inicio = System.nanoTime();
         LongAdder totalLinhas = new LongAdder();
         AtomicInteger lotesProcessados = new AtomicInteger(0);
+        AtomicReference<Throwable> falhaWorker = new AtomicReference<>();
         Queue<Analises> analisesParciais = new ConcurrentLinkedQueue<>();
 
         ThreadFactory threadFactory = AffinityHelper.criarThreadFactory(afinidade);
@@ -135,7 +156,7 @@ public class LeitorCsv {
         try (BufferedReader reader = new BufferedReader(new FileReader(arquivo), 1024 * 1024)) {
             if (reader.readLine() == null) {
                 executor.shutdown();
-                return;
+                return 0;
             }
 
             while (true) {
@@ -169,8 +190,13 @@ public class LeitorCsv {
                         totalLinhas.add(loteFinal.size());
                         lotesProcessados.incrementAndGet();
 
-                        String coreInfo = afinidade ? AffinityHelper.obterInfoCpu() : "";
-                        RelatorioProcessamento.exibirProgresso(numLote, loteFinal.size(), Thread.currentThread().getName(), coreInfo);
+                        if (exibirRelatorio && (numLote == 1 || numLote % 10 == 0)) {
+                            String coreInfo = afinidade ? AffinityHelper.obterInfoCpu() : "";
+                            RelatorioProcessamento.exibirProgresso(
+                                    numLote, loteFinal.size(), Thread.currentThread().getName(), coreInfo);
+                        }
+                    } catch (Throwable falha) {
+                        falhaWorker.compareAndSet(null, falha);
                     } finally {
                         semaphore.release();
                     }
@@ -180,15 +206,32 @@ public class LeitorCsv {
 
         executor.shutdown();
         try {
-            if (!executor.awaitTermination(2, TimeUnit.HOURS)) executor.shutdownNow();
+            if (!executor.awaitTermination(2, TimeUnit.HOURS)) {
+                executor.shutdownNow();
+                throw new IOException("Tempo limite excedido aguardando o processamento dos lotes.");
+            }
         } catch (InterruptedException e) {
             executor.shutdownNow();
             Thread.currentThread().interrupt();
+            throw new IOException("Processamento paralelo interrompido.", e);
+        }
+
+        Throwable falha = falhaWorker.get();
+        if (falha != null) {
+            throw new IOException("Falha ao processar um lote; a medição foi cancelada.", falha);
+        }
+        if (lotesProcessados.get() != totalLotesLidos) {
+            throw new IOException("Nem todos os lotes foram processados; a medição foi cancelada.");
         }
 
         Analises analiseFinal = new Analises();
         for (Analises parcial : analisesParciais) analiseFinal.combinar(parcial);
 
-        RelatorioProcessamento.exibirResumo(totalLinhas.sum(), lotesProcessados.get(), System.currentTimeMillis() - inicio, analiseFinal);
+        double duracaoMs = Math.max(0.001, (System.nanoTime() - inicio) / 1_000_000.0);
+        if (exibirRelatorio) {
+            RelatorioProcessamento.exibirResumo(
+                    totalLinhas.sum(), lotesProcessados.get(), Math.max(1, Math.round(duracaoMs)), analiseFinal);
+        }
+        return duracaoMs;
     }
 }

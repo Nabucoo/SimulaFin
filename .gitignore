@@ -3,8 +3,20 @@ bin/
 */bin/
 *.class
 
-# Dados volumosos de benchmarks
-data/*.csv
+# Ambiente virtual e cache do Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Arquivos CSV
+*.csv
+!gerador/*.csv
+!gerador/**/*.csv
+
+# Gráficos gerados
+processador/graficos/
+*.png
 
 # Configurações de IDEs
 .idea/

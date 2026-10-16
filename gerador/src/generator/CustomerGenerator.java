@@ -1,6 +1,6 @@
-package simulafin.generator;
+package generator;
 
-import simulafin.data.CustomerNameRepository;
+import data.CustomerNameRepository;
 
 import java.util.concurrent.ThreadLocalRandom;
 

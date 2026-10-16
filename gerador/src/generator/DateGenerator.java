@@ -1,4 +1,4 @@
-package simulafin.generator;
+package generator;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

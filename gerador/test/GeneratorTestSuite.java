@@ -1,14 +1,13 @@
-package simulafin;
 
-import simulafin.data.CustomerNameRepository;
-import simulafin.data.LocationRepository;
-import simulafin.export.CsvExporter;
-import simulafin.generator.DateGenerator;
-import simulafin.generator.DistributionType;
-import simulafin.generator.ValueGenerator;
-import simulafin.model.Category;
-import simulafin.model.CityState;
-import simulafin.model.TransactionType;
+import data.CustomerNameRepository;
+import data.LocationRepository;
+import export.CsvExporter;
+import generator.DateGenerator;
+import generator.DistributionType;
+import generator.ValueGenerator;
+import model.Category;
+import model.CityState;
+import model.TransactionType;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -77,7 +76,7 @@ public class GeneratorTestSuite {
         System.out.printf("      Total de combinações possíveis: %,d%n", combs);
 
         Set<String> generatedNames = new HashSet<>();
-        simulafin.generator.CustomerGenerator gen = new simulafin.generator.CustomerGenerator();
+        generator.CustomerGenerator gen = new generator.CustomerGenerator();
         for (int i = 0; i < 5000; i++) {
             String name = gen.nextCustomerName();
             String[] parts = name.split(" ");

@@ -1,4 +1,4 @@
-package simulafin.model;
+package model;
 
 import java.time.LocalDateTime;
 

@@ -16,10 +16,10 @@ O processador usa bibliotecas Java incluídas em `processador/lib/`, incluindo O
 ```text
 SimulaFin/
 ├── gerador/
-│   └── src/
-│       ├── main/java/       # Código do gerador
-│       ├── main/resources/  # Lista de cidades baseada no IBGE
-│       └── test/java/       # Suíte de testes do gerador
+│   ├── src/                 # Main.java e pacotes data, export, generator e model
+│   ├── resources/           # Lista de cidades baseada no IBGE
+│   ├── test/                # Suíte de testes do gerador
+│   └── bin/                 # Classes compiladas
 ├── processador/
 │   ├── src/                 # Código do processador de CSV
 │   └── lib/                 # Dependências Java do processador
@@ -33,14 +33,14 @@ Compile a partir da raiz do repositório:
 
 ```bash
 mkdir -p gerador/bin
-javac -encoding UTF-8 -d gerador/bin $(find gerador/src/main/java -name '*.java')
-cp gerador/src/main/resources/cidades_ibge_top500.csv gerador/bin/
+javac -encoding UTF-8 -d gerador/bin $(find gerador/src -name '*.java')
+cp gerador/resources/cidades_ibge_top500.csv gerador/bin/
 ```
 
 Gere 100 mil registros usando os valores padrão:
 
 ```bash
-java -cp gerador/bin simulafin.Main --count=100000 --out=data/transacoes.csv
+java -cp gerador/bin Main --count=100000 --out=data/transacoes.csv
 ```
 
 O arquivo terá o cabeçalho `id,cliente,data,valor,categoria,cidade,estado,tipo`. A saída usa UTF-8. Crie a pasta de destino antes de executar, se ela ainda não existir.
@@ -62,7 +62,7 @@ O arquivo terá o cabeçalho `id,cliente,data,valor,categoria,cidade,estado,tipo
 Exemplo com distribuição normal e período definido:
 
 ```bash
-java -cp gerador/bin simulafin.Main \
+java -cp gerador/bin Main \
   --count=1000000 \
   --dist=NORMAL \
   --min=20 \
@@ -97,9 +97,9 @@ O processador lê o cabeçalho e processa os registros em lotes. Use um CSV prod
 
 Durante o processamento, o programa sinaliza transações que atendam a pelo menos uma destas regras:
 
-- Valor igual ou superior a R$ 15.000.
-- Categoria Eletrônicos com valor acima de R$ 8.000.
-- Categoria Saúde ou Educação com valor acima de R$ 2.000.
+- Valor igual ou superior a R$ 14.000.
+- Categoria Eletrônicos com valor acima de R$ 12.000.
+- Categoria Saúde ou Educação com valor acima de R$ 10.000.
 - Valor acima de R$ 1.000 entre 00:00 e 05:59.
 
 O relatório exibe o total de transações suspeitas únicas, a quantidade de alertas por regra e uma amostra de até 10 transações. Uma transação pode corresponder a mais de uma regra.
@@ -109,12 +109,12 @@ O relatório exibe o total de transações suspeitas únicas, a quantidade de al
 Compile e execute a suíte incluída:
 
 ```bash
-javac -encoding UTF-8 -cp gerador/bin -d gerador/bin $(find gerador/src/test/java -name '*.java')
-java -cp gerador/bin simulafin.GeneratorTestSuite
+javac -encoding UTF-8 -cp gerador/bin -d gerador/bin $(find gerador/test -name '*.java')
+java -cp gerador/bin GeneratorTestSuite
 ```
 
 ## Arquivos de dados e Git
 
-Os CSVs gerados e os arquivos de benchmark em `data/` podem ocupar muito espaço e são ignorados pelo `.gitignore`. Gere-os localmente conforme necessário; eles não são necessários para compilar o gerador. A base compacta de cidades usada pelo programa fica versionada em `gerador/src/main/resources/cidades_ibge_top500.csv`.
+Os CSVs gerados e os arquivos de benchmark podem ocupar muito espaço e são ignorados pelo `.gitignore`. Gere-os localmente conforme necessário; eles não são necessários para compilar o gerador. A base compacta de cidades usada pelo programa fica versionada em `gerador/resources/cidades_ibge_top500.csv`.
 
 Os diretórios `bin/` contêm arquivos compilados e também são ignorados. As bibliotecas em `processador/lib/` são dependências usadas pelo processador.

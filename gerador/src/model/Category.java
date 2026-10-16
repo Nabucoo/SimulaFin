@@ -1,4 +1,4 @@
-package simulafin.model;
+package model;
 
 /**
  * Categorias de gastos permitidas para as transações financeiras.

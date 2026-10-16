@@ -6,30 +6,20 @@ O projeto tem como objetivo desenvolver um gerador robusto e de altíssimo desem
 
 ### Estrutura de Pacotes e Componentes
 
-Organização sugerida em padrão de pacotes limpo (`simulafin`):
+Organização do código-fonte com os pacotes diretamente dentro de `src`:
 
 ```
-simulafin/
-├── Main.java                        // Ponto de entrada CLI, parsing de argumentos e orquestração
-├── model/
-│   ├── Transaction.java             // POJO / Record ou estrutura de dados da transação
-│   ├── TransactionType.java         // Enum: PIX, CREDITO, BOLETO, DEBITO
-│   ├── Category.java                // Enum: Alimentacao, Transporte, Eletronicos, Saude, Educacao
-│   └── CityState.java               // Record (cidade, uf)
-├── data/
-│   ├── LocationRepository.java      // Repositório imutável das 500 maiores cidades do Brasil (Censo IBGE 2022)
-│   └── CustomerNameRepository.java  // Listas de nomes, segundos nomes e sobrenomes (>1.000 combinações)
-├── generator/
-│   ├── DistributionType.java        // Enum: UNIFORME, NORMAL, EXPONENCIAL_CRESCENTE, EXPONENCIAL_DECRESCENTE
-│   ├── ValueGenerator.java          // Implementação das 4 distribuições estatísticas de valores
-│   ├── CustomerGenerator.java       // Geração determinística ou estocástica de clientes válidos
-│   ├── DateGenerator.java           // Geração temporal (intervalo configurável + horário realista/pico)
-│   └── TransactionGenerator.java    // Coordena a criação dos registros
-├── export/
-│   ├── CsvExporter.java             // Exportador em streaming com BufferedWriter e buffer dimensionado
-│   └── FastCsvFormatter.java        // Utilitário de formatação de números e datas sem overhead excessivo
+gerador/
+├── src/
+│   ├── Main.java
+│   ├── data/                       // Repositórios de cidades e nomes
+│   ├── export/                     // Escrita e formatação CSV
+│   ├── generator/                  // Geradores de valores, datas, clientes e transações
+│   └── model/                      // Modelos e enums
+├── resources/
+│   └── cidades_ibge_top500.csv
 └── test/
-    └── GeneratorTestSuite.java      // Suíte de testes automatizados e validação estatística
+    └── GeneratorTestSuite.java
 ```
 
 ---

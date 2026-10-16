@@ -1,11 +1,10 @@
-package simulafin;
 
-import simulafin.data.CustomerNameRepository;
-import simulafin.data.LocationRepository;
-import simulafin.export.CsvExporter;
-import simulafin.generator.DateGenerator;
-import simulafin.generator.DistributionType;
-import simulafin.generator.ValueGenerator;
+import data.CustomerNameRepository;
+import data.LocationRepository;
+import export.CsvExporter;
+import generator.DateGenerator;
+import generator.DistributionType;
+import generator.ValueGenerator;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -71,6 +70,7 @@ public class Main {
         System.out.printf("Arquivo de Saída    : %s%n", outputFile.toAbsolutePath());
         System.out.printf("Base de Cidades     : %d municípios carregados (%s)%n",
                 LocationRepository.size(), LocationRepository.getDataSourceInfo());
+        System.out.println("Sorteio de Cidades  : ponderado pela população do catálogo");
         System.out.printf(Locale.US, "Combinações Nomes   : %,d combinações disponíveis%n",
                 CustomerNameRepository.getTotalPossibleCombinations());
         System.out.println("-------------------------------------------------------------------------------");
@@ -106,7 +106,7 @@ public class Main {
 
     private static void printHelp() {
         System.out.println("Uso do SimulaFin:");
-        System.out.println("  java -cp <classpath> simulafin.Main [opções]");
+        System.out.println("  java -cp <classpath> Main [opções]");
         System.out.println();
         System.out.println("Opções disponíveis:");
         System.out.println("  --count=<N>         Quantidade de transações a gerar (padrão: 100000)");

@@ -1,4 +1,4 @@
-package simulafin.model;
+package model;
 
 /**
  * Meios de pagamento suportados pelo sistema de transações.

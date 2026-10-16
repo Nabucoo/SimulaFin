@@ -1,4 +1,4 @@
-package simulafin.generator;
+package generator;
 
 import java.util.concurrent.ThreadLocalRandom;
 

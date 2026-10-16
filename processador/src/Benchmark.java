@@ -1,110 +1,159 @@
+import io.LeitorCsv;
 import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.io.IOException;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
-import io.LeitorCsv;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 public class Benchmark {
 
-    // Configurações do experimento
-    private static final String ARQUIVO_CSV = "data/transacoes_50M.csv";
-    private static final int REPETICOES = 3; // Executa 3 vezes cada cenário e tira a média
+    private static final String ARQUIVO_CSV = "data/transacoes_exponencial_decrescente_50m.csv";
+    private static final int REPETICOES = 3;
     private static final int[] N_THREADS = {2, 4, 6, 8};
 
     static class Resultado {
-        String modo;
-        int threads;
-        boolean afinidade;
+        final String modo;
+        final int threads;
+        final boolean afinidade;
+        final List<Double> temposMs = new ArrayList<>();
         double tempoMedioMs;
         double speedup;
         double eficiencia;
 
-        public Resultado(String modo, int threads, boolean afinidade, double tempoMedioMs) {
+        Resultado(String modo, int threads, boolean afinidade) {
             this.modo = modo;
             this.threads = threads;
             this.afinidade = afinidade;
-            this.tempoMedioMs = tempoMedioMs;
+        }
+
+        void adicionarTempo(double tempoMs) {
+            temposMs.add(tempoMs);
+        }
+
+        void calcularMedia() {
+            double soma = 0;
+            for (double tempo : temposMs) {
+                soma += tempo;
+            }
+            tempoMedioMs = soma / temposMs.size();
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         String arquivo = args.length > 0 ? args[0] : ARQUIVO_CSV;
         System.out.println("==========================================================");
-        System.out.println("    INICIANDO MÓDULO DE EXPERIMENTAÇÃO E BENCHMARK        ");
-        System.out.println("    Arquivo: " + arquivo);
-        System.out.println("    Repetições por configuração: " + REPETICOES);
+        System.out.println("              BENCHMARK DO PROCESSADOR                   ");
+        System.out.println("  Arquivo: " + arquivo);
+        System.out.println("  Aquecimento: não");
+        System.out.println("  Rodadas: " + REPETICOES + " por cenário");
+        System.out.println("  Ordem: threads crescentes; afinidade alternada");
+        System.out.println("  Métrica: média do tempo de leitura e processamento");
         System.out.println("==========================================================\n");
 
-        List<Resultado> resultados = new ArrayList<>();
+        Map<String, Resultado> porCenario = criarResultados();
+        for (int repeticao = 0; repeticao < REPETICOES; repeticao++) {
+            int numeroRepeticao = repeticao + 1;
+            medir(porCenario.get(chave("Sequencial", 1, false)), arquivo,
+                    numeroRepeticao, REPETICOES);
 
-        // 1. MEDIR TEMPO SEQUENCIAL (Base para Speedup e Eficiência)
-        System.out.println(">>> Executando modo SEQUENCIAL...");
-        double tempoSequencial = executarCenario(arquivo, "sequencial", 1, false);
-        Resultado resSeq = new Resultado("Sequencial", 1, false, tempoSequencial);
-        resSeq.speedup = 1.0;
-        resSeq.eficiencia = 100.0;
-        resultados.add(resSeq);
-
-        // 2. MEDIR PARALELO SEM AFINIDADE (2, 4, 6, 8 threads)
-        for (int th : N_THREADS) {
-            System.out.println(">>> Executando PARALELO SEM AFINIDADE (" + th + " threads)...");
-            double tempo = executarCenario(arquivo, "paralelo", th, false);
-            Resultado r = new Resultado("Paralelo", th, false, tempo);
-            r.speedup = tempoSequencial / tempo;
-            r.eficiencia = (r.speedup / th) * 100.0;
-            resultados.add(r);
+            for (int threads : N_THREADS) {
+                boolean afinidadePrimeiro = repeticao % 2 != 0;
+                medirCenario(porCenario, arquivo, threads, afinidadePrimeiro,
+                        numeroRepeticao);
+                medirCenario(porCenario, arquivo, threads, !afinidadePrimeiro,
+                        numeroRepeticao);
+            }
         }
 
-        // 3. MEDIR PARALELO COM AFINIDADE (2, 4, 6, 8 threads)
-        for (int th : N_THREADS) {
-            System.out.println(">>> Executando PARALELO COM AFINIDADE (" + th + " threads)...");
-            double tempo = executarCenario(arquivo, "paralelo", th, true);
-            Resultado r = new Resultado("Com Afinidade", th, true, tempo);
-            r.speedup = tempoSequencial / tempo;
-            r.eficiencia = (r.speedup / th) * 100.0;
-            resultados.add(r);
+        List<Resultado> resultados = ordenarResultados(porCenario);
+        for (Resultado resultado : resultados) {
+            resultado.calcularMedia();
         }
 
-        // 4. EXIBIR TABELA FORMATADA NO TERMINAL
+        double tempoSequencial = resultados.get(0).tempoMedioMs;
+        for (int i = 1; i < resultados.size(); i++) {
+            Resultado resultado = resultados.get(i);
+            resultado.speedup = tempoSequencial / resultado.tempoMedioMs;
+            resultado.eficiencia = (resultado.speedup / resultado.threads) * 100.0;
+        }
+        resultados.get(0).speedup = 1.0;
+        resultados.get(0).eficiencia = 100.0;
+
         imprimirTabela(resultados);
-
-        // 5. EXPORTAR CSV PARA GERAÇÃO DOS GRÁFICOS
         exportarCsv(resultados, "benchmark_resultados.csv");
     }
 
-    private static double executarCenario(String arquivo, String modo, int threads, boolean afinidade) {
-        long somaTempos = 0;
-
-        for (int i = 1; i <= REPETICOES; i++) {
-            System.gc(); // Sugere limpeza de memória antes de cada bateria
-            long inicio = System.currentTimeMillis();
-            try {
-                LeitorCsv leitor = new LeitorCsv(arquivo, modo, threads, afinidade);
-                leitor.ler();
-            } catch (Exception e) {
-                System.err.println("Erro durante a execução: " + e.getMessage());
-            }
-            long duracao = System.currentTimeMillis() - inicio;
-            somaTempos += duracao;
-            System.out.printf("   Repetição %d/%d: %,d ms\n", i, REPETICOES, duracao);
+    private static Map<String, Resultado> criarResultados() {
+        Map<String, Resultado> resultados = new LinkedHashMap<>();
+        resultados.put(chave("Sequencial", 1, false), new Resultado("Sequencial", 1, false));
+        for (int threads : N_THREADS) {
+            resultados.put(chave("Paralelo", threads, false), new Resultado("Paralelo", threads, false));
         }
+        for (int threads : N_THREADS) {
+            resultados.put(chave("Com Afinidade", threads, true), new Resultado("Com Afinidade", threads, true));
+        }
+        return resultados;
+    }
 
-        double media = (double) somaTempos / REPETICOES;
-        System.out.printf("   -> Tempo Médio: %,.2f ms (%.2f s)\n\n", media, media / 1000.0);
-        return media;
+    private static List<Resultado> ordenarResultados(Map<String, Resultado> porCenario) {
+        List<Resultado> resultados = new ArrayList<>();
+        resultados.add(porCenario.get(chave("Sequencial", 1, false)));
+        for (int threads : N_THREADS) {
+            resultados.add(porCenario.get(chave("Paralelo", threads, false)));
+        }
+        for (int threads : N_THREADS) {
+            resultados.add(porCenario.get(chave("Com Afinidade", threads, true)));
+        }
+        return resultados;
+    }
+
+    private static void medirCenario(Map<String, Resultado> resultados, String arquivo,
+            int threads, boolean afinidade, int repeticao) throws IOException {
+        String modo = nomeModo(afinidade);
+        medir(resultados.get(chave(modo, threads, afinidade)), arquivo, repeticao, REPETICOES);
+    }
+
+    private static void medir(Resultado resultado, String arquivo, int repeticao, int totalRepeticoes)
+            throws IOException {
+        System.gc();
+        double duracaoMs = new LeitorCsv(arquivo, modoLeitor(resultado), resultado.threads,
+                resultado.afinidade).lerParaBenchmark();
+        if (duracaoMs <= 0) {
+            throw new IOException("A medição retornou tempo zero; verifique se o CSV contém registros.");
+        }
+        resultado.adicionarTempo(duracaoMs);
+        System.out.printf("  %s | %d thread(s) | afinidade %s | repetição %d/%d: %,.2f ms%n",
+                resultado.modo, resultado.threads, resultado.afinidade ? "sim" : "não",
+                repeticao, totalRepeticoes, duracaoMs);
+    }
+
+    private static String modoLeitor(Resultado resultado) {
+        return resultado.threads == 1 ? "sequencial" : "paralelo";
+    }
+
+    private static String nomeModo(boolean afinidade) {
+        return afinidade ? "Com Afinidade" : "Paralelo";
+    }
+
+    private static String chave(String modo, int threads, boolean afinidade) {
+        return modo + "|" + threads + "|" + afinidade;
     }
 
     private static void imprimirTabela(List<Resultado> resultados) {
         System.out.println("\n=========================================================================================");
-        System.out.println("                               TABELA DE RESULTADOS DO BENCHMARK                          ");
+        System.out.println("                               RESULTADOS DO BENCHMARK                                   ");
         System.out.println("=========================================================================================");
-        System.out.printf("%-15s | %-7s | %-12s | %-15s | %-10s | %-12s\n", 
-                          "Modo", "Threads", "Afinidade", "Tempo Médio (ms)", "Speedup", "Eficiência (%)");
+        System.out.printf("%-15s | %-7s | %-12s | %-16s | %-10s | %-12s%n",
+                "Modo", "Threads", "Afinidade", "Média (ms)", "Speedup", "Eficiência (%)");
         System.out.println("-----------------------------------------------------------------------------------------");
 
-        for (Resultado r : resultados) {
-            System.out.printf("%-15s | %-7d | %-12s | %-15.2f | %-10.2fx | %-11.2f%%\n",
-                    r.modo, r.threads, r.afinidade ? "Sim" : "Não", r.tempoMedioMs, r.speedup, r.eficiencia);
+        for (Resultado resultado : resultados) {
+            System.out.printf("%-15s | %-7d | %-12s | %-16.2f | %-10.2fx | %-11.2f%%%n",
+                    resultado.modo, resultado.threads, resultado.afinidade ? "Sim" : "Não",
+                    resultado.tempoMedioMs, resultado.speedup, resultado.eficiencia);
         }
         System.out.println("=========================================================================================\n");
     }
@@ -112,12 +161,13 @@ public class Benchmark {
     private static void exportarCsv(List<Resultado> resultados, String nomeArquivo) {
         try (PrintWriter writer = new PrintWriter(new FileWriter(nomeArquivo))) {
             writer.println("modo,threads,afinidade,tempo_ms,speedup,eficiencia_percent");
-            for (Resultado r : resultados) {
-                writer.printf("%s,%d,%s,%.2f,%.4f,%.2f\n",
-                        r.modo, r.threads, r.afinidade, r.tempoMedioMs, r.speedup, r.eficiencia);
+            for (Resultado resultado : resultados) {
+                writer.printf(Locale.US, "%s,%d,%s,%.2f,%.4f,%.2f%n",
+                        resultado.modo, resultado.threads, resultado.afinidade,
+                        resultado.tempoMedioMs, resultado.speedup, resultado.eficiencia);
             }
-            System.out.println("Resultados exportados para o arquivo: " + nomeArquivo);
-        } catch (Exception e) {
+            System.out.println("Médias exportadas para o arquivo: " + nomeArquivo);
+        } catch (IOException e) {
             System.err.println("Erro ao exportar CSV: " + e.getMessage());
         }
     }

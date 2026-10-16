@@ -1,4 +1,4 @@
-package simulafin.data;
+package data;
 
 /**
  * Catálogo com nomes e sobrenomes brasileiros para formação de nomes completos realistas.

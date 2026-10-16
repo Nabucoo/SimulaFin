@@ -1,4 +1,4 @@
-package simulafin.generator;
+package generator;
 
 /**
  * Tipos de distribuições estatísticas suportadas para geração dos valores das transações.

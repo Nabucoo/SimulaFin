@@ -1,10 +1,10 @@
-package simulafin.generator;
+package generator;
 
-import simulafin.data.LocationRepository;
-import simulafin.model.Category;
-import simulafin.model.CityState;
-import simulafin.model.Transaction;
-import simulafin.model.TransactionType;
+import data.LocationRepository;
+import model.Category;
+import model.CityState;
+import model.Transaction;
+import model.TransactionType;
 
 import java.time.LocalDateTime;
 import java.util.concurrent.ThreadLocalRandom;
@@ -17,7 +17,6 @@ public final class TransactionGenerator {
     private final CustomerGenerator customerGenerator;
     private final DateGenerator dateGenerator;
     private final ValueGenerator valueGenerator;
-    private final CityState[] cities;
     private final Category[] categories;
     private final TransactionType[] transactionTypes;
 
@@ -27,7 +26,6 @@ public final class TransactionGenerator {
         this.customerGenerator = new CustomerGenerator();
         this.dateGenerator = dateGenerator;
         this.valueGenerator = valueGenerator;
-        this.cities = LocationRepository.getAllCities();
         this.categories = Category.cachedValues();
         this.transactionTypes = TransactionType.cachedValues();
         this.currentId = 1L;
@@ -48,7 +46,7 @@ public final class TransactionGenerator {
 
         ThreadLocalRandom random = ThreadLocalRandom.current();
         Category cat = categories[random.nextInt(categories.length)];
-        CityState cs = cities[random.nextInt(cities.length)];
+        CityState cs = LocationRepository.getRandomCity(random);
         TransactionType tipo = transactionTypes[random.nextInt(transactionTypes.length)];
 
         return new Transaction(
